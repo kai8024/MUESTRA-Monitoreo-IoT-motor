@@ -1,21 +1,20 @@
-"""Cálculo de indicadores y clasificación por umbrales fijos (secciones 15.1 y 15.2).
-Funciones puras: no dependen de Flask ni de la BD, así son fáciles de testear."""
+"""Indicadores y clasificación por umbrales fijos para motor monofásico.
+Funciones puras: no dependen de Flask ni de la BD."""
 import math
 
 NIVELES = {"NORMAL": 0, "ADVERTENCIA": 1, "CRITICO": 2}
 
 
 def calcular_vibracion(ax, ay, az):
-    """Indicador experimental A = sqrt(X²+Y²+Z²) (incluye la gravedad, ~1 g en reposo)."""
+    """Magnitud de aceleración A = sqrt(X²+Y²+Z²) (incluye gravedad, ~1 g en reposo)."""
     return math.sqrt(ax ** 2 + ay ** 2 + az ** 2)
 
 
-def calcular_desequilibrio(valores):
-    """% = máxima desviación de una fase respecto al promedio / promedio * 100."""
-    promedio = sum(valores) / len(valores)
-    if promedio < 1e-6:          # motor apagado / sin lectura
+def calcular_desviacion_porcentual(valor, nominal):
+    """|valor - nominal| / nominal * 100. Usado para tensión de red del motor monofásico."""
+    if abs(nominal) < 1e-6:
         return 0.0
-    return max(abs(v - promedio) for v in valores) / promedio * 100.0
+    return abs(valor - nominal) / abs(nominal) * 100.0
 
 
 def nivel_variable(valor, advertencia, critico):

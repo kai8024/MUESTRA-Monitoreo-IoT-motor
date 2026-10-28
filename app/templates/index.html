@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Monitoreo del motor</title>
+<title>Monitoreo IoT — motor monofásico</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -13,58 +13,92 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
 main{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 h1{font-size:1.25rem;margin:0;font-weight:600}
 h2{font-size:.95rem;margin:0 0 10px;font-weight:600}
+.lede{max-width:720px;margin:8px 0 0;color:var(--mute);font-size:.88rem;line-height:1.45}
 .mute{color:var(--mute);font-size:.85rem}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
-.top{display:grid;grid-template-columns:340px 1fr;gap:16px;margin-top:16px}
+.top{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:16px}
 .health{display:flex;flex-direction:column;align-items:center;text-align:center}
-.ring{--p:0;--c:var(--wait);width:210px;height:210px;border-radius:50%;
+.ring{--p:0;--c:var(--wait);width:200px;height:200px;border-radius:50%;
  background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center}
-.ring>div{width:164px;height:164px;border-radius:50%;background:var(--panel);display:grid;place-content:center}
+.ring>div{width:156px;height:156px;border-radius:50%;background:var(--panel);display:grid;place-content:center}
 .ring b{font-size:3rem;line-height:1;font-weight:500}
+.semaforo{display:flex;gap:10px;margin:14px 0 4px}
+.luz{width:22px;height:22px;border-radius:50%;background:var(--line);opacity:.35}
+.luz.on{opacity:1;box-shadow:0 0 10px currentColor}
+.luz.g{background:var(--ok);color:var(--ok)}.luz.y{background:var(--warn);color:var(--warn)}.luz.r{background:var(--crit);color:var(--crit)}
 .badge{display:inline-block;padding:3px 10px;border-radius:999px;color:#fff;font-size:.85rem;font-weight:600;background:var(--wait)}
 .NORMAL{background:var(--ok)}.ADVERTENCIA{background:var(--warn);color:#1c1500}.CRITICO{background:var(--crit)}.CALIBRANDO{background:var(--wait)}
-.row{display:flex;justify-content:space-between;gap:8px;margin-top:12px;width:100%;align-items:center}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;align-content:start}
+.row{display:flex;justify-content:space-between;gap:8px;margin-top:10px;width:100%;align-items:center}
+.hint{font-size:.78rem;color:var(--mute);margin-top:12px;line-height:1.4;text-align:left}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;align-content:start}
 .card{border:1px solid var(--line);border-left:4px solid var(--wait);border-radius:4px;padding:10px 12px;background:var(--panel)}
 .card.NORMAL{border-left-color:var(--ok)}.card.ADVERTENCIA{border-left-color:var(--warn)}.card.CRITICO{border-left-color:var(--crit)}
 .card span{display:block;color:var(--mute);font-size:.8rem}
 .card b{font-size:1.45rem;font-weight:500}.card small{color:var(--mute)}
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-top:16px}
-.charts canvas{width:100%;height:210px}
+.chart-wrap{position:relative;height:210px}
 .bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
 table{width:100%;border-collapse:collapse;font-size:.85rem}
 th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
 th{color:var(--mute);font-weight:500}
 .scroll{max-height:300px;overflow:auto}
 .empty{color:var(--mute);padding:8px 0}
-@media(max-width:860px){.top,.bottom{grid-template-columns:1fr}}
+.placa{margin-top:16px;display:grid;grid-template-columns:1.2fr 2fr;gap:16px}
+.placa dl{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px 12px;margin:0}
+.placa dt{color:var(--mute);font-size:.75rem;font-weight:500}
+.placa dd{margin:2px 0 0;font-size:.95rem;font-weight:500}
+.placa .tipo{margin:0 0 10px;font-size:.9rem}
+@media(max-width:860px){.top,.bottom,.placa{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main>
 <header>
-  <h1>Motor trifásico de pruebas</h1>
+  <div>
+    <h1>Prototipo IoT — motor eléctrico monofásico</h1>
+    <p class="lede">ESP32 envía temperatura, vibración, corriente y tensión al servidor.
+      El índice de salud adaptativo alimenta un semáforo inteligente para anticipar fallas incipientes.</p>
+  </div>
   <span class="mute" id="stamp">Esperando datos del ESP32…</span>
 </header>
 
+<section class="placa">
+  <div class="panel">
+    <h2>Motor monitoreado</h2>
+    <p class="tipo" id="motor-tipo">Cargando placa…</p>
+    <p class="mute" id="motor-uso"></p>
+  </div>
+  <div class="panel">
+    <h2>Placa de características</h2>
+    <dl id="motor-placa"></dl>
+  </div>
+</section>
+
 <section class="top">
   <div class="panel health">
-    <h2>Índice de salud</h2>
+    <h2>Índice de salud adaptativo</h2>
     <div class="ring" id="ring"><div><b id="idx">–</b><span class="mute">de 100</span></div></div>
+    <div class="semaforo" aria-label="Semáforo inteligente">
+      <span class="luz g" id="luzG"></span>
+      <span class="luz y" id="luzY"></span>
+      <span class="luz r" id="luzR"></span>
+    </div>
     <div class="row"><span>Semáforo inteligente</span><span class="badge" id="sem">–</span></div>
     <div class="row"><span>Umbrales fijos</span><span class="badge" id="est">–</span></div>
+    <p class="hint">El semáforo usa la tendencia del índice (z-score frente a la línea base del propio motor). Puede pasar a advertencia antes de que un umbral fijo se rebase.</p>
   </div>
   <div class="cards" id="cards"></div>
 </section>
 
 <section class="charts">
-  <div class="panel"><h2>Temperatura (°C)</h2><canvas id="cT"></canvas></div>
-  <div class="panel"><h2>Vibración (g)</h2><canvas id="cV"></canvas></div>
-  <div class="panel"><h2>Índice de salud</h2><canvas id="cH"></canvas></div>
-  <div class="panel"><h2>Corriente por fase (A)</h2><canvas id="cI"></canvas></div>
+  <div class="panel"><h2>Temperatura (°C)</h2><div class="chart-wrap"><canvas id="cT"></canvas></div></div>
+  <div class="panel"><h2>Vibración (g)</h2><div class="chart-wrap"><canvas id="cV"></canvas></div></div>
+  <div class="panel"><h2>Corriente (A)</h2><div class="chart-wrap"><canvas id="cI"></canvas></div></div>
+  <div class="panel"><h2>Tensión (V)</h2><div class="chart-wrap"><canvas id="cU"></canvas></div></div>
+  <div class="panel"><h2>Índice de salud</h2><div class="chart-wrap"><canvas id="cH"></canvas></div></div>
 </section>
 
 <section class="bottom">
@@ -75,9 +109,10 @@ th{color:var(--mute);font-weight:500}
 
 <script>
 const $ = id => document.getElementById(id);
-const COL = {ok:'#2e8b57', warn:'#d89b00', crit:'#c8372d', a:'#2b6f8e', b:'#8a5fa8', c:'#c0742b'};
+const COL = {ok:'#2e8b57', warn:'#d89b00', crit:'#c8372d', a:'#2b6f8e'};
 const hora = s => s.slice(11, 19);
 const f = (v, d = 2) => (v == null ? '–' : Number(v).toFixed(d));
+let UMB = {temperatura: [50, 65], vibracion: [1.2, 2], corriente: [4, 5.5], desviacion_tension: [5, 10]};
 
 function chart(id, series, yOpts = {}) {
   return new Chart($(id), {
@@ -88,8 +123,9 @@ function chart(id, series, yOpts = {}) {
 }
 const cT = chart('cT', [['Temperatura', COL.crit]]);
 const cV = chart('cV', [['Vibración', COL.a]]);
+const cI = chart('cI', [['Corriente', COL.warn]]);
+const cU = chart('cU', [['Tensión', COL.ok]]);
 const cH = chart('cH', [['Índice', COL.ok]], {min: 0, max: 100});
-const cI = chart('cI', [['L1', COL.a], ['L2', COL.b], ['L3', COL.c]]);
 
 function setChart(c, labels, ...series) {
   c.data.labels = labels;
@@ -97,26 +133,29 @@ function setChart(c, labels, ...series) {
   c.update();
 }
 
-// Cada tarjeta: etiqueta, campo, decimales, unidad, campo con el nivel (si tiene umbral fijo)
 function renderCards(m, det) {
   const defs = [
     ['Temperatura', 'temperatura', 1, '°C', 'temperatura'],
     ['Vibración', 'vibracion', 3, 'g', 'vibracion'],
-    ['Aceleración X', 'aceleracion_x', 3, 'g'], ['Aceleración Y', 'aceleracion_y', 3, 'g'], ['Aceleración Z', 'aceleracion_z', 3, 'g'],
-    ['Corriente L1', 'corriente_l1', 2, 'A'], ['Corriente L2', 'corriente_l2', 2, 'A'], ['Corriente L3', 'corriente_l3', 2, 'A'],
-    ['Tensión L1', 'tension_l1', 1, 'V'], ['Tensión L2', 'tension_l2', 1, 'V'], ['Tensión L3', 'tension_l3', 1, 'V'],
-    ['Desequilibrio de corriente', 'desequilibrio_corriente', 2, '%', 'desequilibrio_corriente'],
-    ['Desequilibrio de tensión', 'desequilibrio_tension', 2, '%', 'desequilibrio_tension'],
+    ['Corriente', 'corriente', 2, 'A', 'corriente'],
+    ['Tensión', 'tension', 1, 'V', 'desviacion_tension'],
+    ['Desviación de tensión', 'desviacion_tension', 2, '%', 'desviacion_tension'],
+    ['Aceleración X', 'aceleracion_x', 3, 'g'],
+    ['Aceleración Y', 'aceleracion_y', 3, 'g'],
+    ['Aceleración Z', 'aceleracion_z', 3, 'g'],
   ];
   $('cards').innerHTML = defs.map(([l, k, d, u, lv]) =>
     `<div class="card ${lv ? (det[lv] || '') : ''}"><span>${l}</span><b>${f(m[k], d)}</b> <small>${u}</small></div>`).join('');
 }
 
-// Nivel por variable, calculado en el cliente solo para colorear (la fuente de verdad es el backend)
-const UMB = {temperatura: [50, 65], vibracion: [1.2, 2], desequilibrio_corriente: [5, 10], desequilibrio_tension: [2, 4]};
 const nivel = (k, v) => v > UMB[k][1] ? 'CRITICO' : v >= UMB[k][0] ? 'ADVERTENCIA' : 'NORMAL';
-
 function setBadge(el, txt) { el.textContent = txt; el.className = 'badge ' + txt; }
+
+function setSemaforo(s) {
+  $('luzG').classList.toggle('on', s === 'NORMAL');
+  $('luzY').classList.toggle('on', s === 'ADVERTENCIA' || s === 'CALIBRANDO');
+  $('luzR').classList.toggle('on', s === 'CRITICO');
+}
 
 async function tick() {
   try {
@@ -130,31 +169,57 @@ async function tick() {
     $('stamp').textContent = 'Última actualización: ' + m.fecha_hora.replace('T', ' ');
     renderCards(m, det);
     setBadge($('est'), m.estado);
-    setBadge($('sem'), m.semaforo_inteligente || 'CALIBRANDO');
+    const sem = m.semaforo_inteligente || 'CALIBRANDO';
+    setBadge($('sem'), sem);
+    setSemaforo(sem);
     const idx = m.indice_salud;
     $('idx').textContent = idx == null ? '–' : Math.round(idx);
     const ring = $('ring');
     ring.style.setProperty('--p', idx ?? 0);
-    ring.style.setProperty('--c', {NORMAL: 'var(--ok)', ADVERTENCIA: 'var(--warn)', CRITICO: 'var(--crit)'}[m.semaforo_inteligente] || 'var(--wait)');
+    ring.style.setProperty('--c', {NORMAL: 'var(--ok)', ADVERTENCIA: 'var(--warn)', CRITICO: 'var(--crit)'}[sem] || 'var(--wait)');
 
     const L = hist.map(x => hora(x.fecha_hora));
     setChart(cT, L, hist.map(x => x.temperatura));
     setChart(cV, L, hist.map(x => x.vibracion));
+    setChart(cI, L, hist.map(x => x.corriente));
+    setChart(cU, L, hist.map(x => x.tension));
     setChart(cH, L, hist.map(x => x.indice_salud));
-    setChart(cI, L, hist.map(x => x.corriente_l1), hist.map(x => x.corriente_l2), hist.map(x => x.corriente_l3));
 
     $('alerts').innerHTML = alertas.length
       ? `<table><tr><th>Hora</th><th>Umbrales</th><th>Semáforo</th></tr>${alertas.map(a =>
           `<tr><td>${hora(a.fecha_hora)}</td><td><span class="badge ${a.estado}">${a.estado}</span></td><td><span class="badge ${a.semaforo_inteligente}">${a.semaforo_inteligente}</span></td></tr>`).join('')}</table>`
       : '<div class="empty">Sin alertas. El motor opera dentro de lo esperado.</div>';
 
-    $('hist').innerHTML = `<table><tr><th>Hora</th><th>Temp.</th><th>Vib.</th><th>Salud</th></tr>${hist.slice(-12).reverse().map(x =>
-      `<tr><td>${hora(x.fecha_hora)}</td><td>${f(x.temperatura, 1)}</td><td>${f(x.vibracion, 3)}</td><td>${f(x.indice_salud, 0)}</td></tr>`).join('')}</table>`;
+    $('hist').innerHTML = `<table><tr><th>Hora</th><th>Temp.</th><th>Vib.</th><th>I</th><th>V</th><th>Salud</th></tr>${hist.slice(-12).reverse().map(x =>
+      `<tr><td>${hora(x.fecha_hora)}</td><td>${f(x.temperatura, 1)}</td><td>${f(x.vibracion, 3)}</td><td>${f(x.corriente, 2)}</td><td>${f(x.tension, 0)}</td><td>${f(x.indice_salud, 0)}</td></tr>`).join('')}</table>`;
   } catch (e) {
     $('stamp').textContent = 'Sin conexión con el servidor. Reintentando…';
   }
 }
-tick(); setInterval(tick, 3000);
+
+function renderMotor(m) {
+  if (!m) return;
+  $('motor-tipo').textContent = `${m.id} · ${m.tipo}`;
+  $('motor-uso').textContent = m.uso || '';
+  const rows = [
+    ['Nombre', m.nombre],
+    ['Potencia', `${m.potencia_hp} HP (${m.potencia_kw} kW)`],
+    ['Tensión', `${m.tension_nominal_v} V`],
+    ['Corriente', `${m.corriente_nominal_a} A`],
+    ['Frecuencia', `${m.frecuencia_hz} Hz`],
+    ['Velocidad', `${m.velocidad_rpm} rpm`],
+    ['Polos', m.polos],
+    ['Conexión', m.conexion],
+    ['Factor de servicio', m.factor_servicio],
+    ['Aislamiento', `Clase ${m.clase_aislamiento}`],
+  ];
+  $('motor-placa').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+
+fetch('/api/configuracion').then(r => r.json()).then(cfg => {
+  if (cfg.umbrales) UMB = cfg.umbrales;
+  renderMotor(cfg.motor);
+}).catch(() => {}).finally(() => { tick(); setInterval(tick, 3000); });
 </script>
 </body>
 </html>

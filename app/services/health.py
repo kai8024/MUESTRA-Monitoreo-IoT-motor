@@ -1,4 +1,8 @@
-"""Línea base, desviaciones (z-score), índice de salud y semáforo inteligente (sección 15.3)."""
+"""Línea base, z-score, índice de salud adaptativo y semáforo inteligente.
+
+El semáforo no espera a que un umbral fijo se rebase: penaliza desviaciones
+respecto al régimen normal del propio motor (fallas incipientes).
+"""
 import statistics
 from datetime import datetime
 
@@ -7,7 +11,7 @@ from flask import current_app
 from .. import db
 from ..models import LineaBase, Medicion
 
-VARIABLES = ["temperatura", "vibracion", "desequilibrio_corriente", "desequilibrio_tension"]
+VARIABLES = ["temperatura", "vibracion", "corriente", "desviacion_tension"]
 
 
 def obtener_linea_base():
@@ -47,7 +51,7 @@ def calcular_indice(desviaciones, pesos, factor):
 
 
 def clasificar_semaforo(indices_recientes, umbral_adv, umbral_crit):
-    """Usa el promedio de los últimos índices (tendencia sostenida, no un pico aislado)."""
+    """Promedio de índices recientes: tendencia sostenida, no un pico aislado."""
     suavizado = sum(indices_recientes) / len(indices_recientes)
     if suavizado < umbral_crit:
         return "CRITICO"

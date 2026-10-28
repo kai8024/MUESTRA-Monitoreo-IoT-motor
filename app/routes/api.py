@@ -9,9 +9,9 @@ from ..services import classifier, health
 
 api_bp = Blueprint("api", __name__)
 
+# Contrato JSON del ESP32: un canal de corriente y uno de tensión (motor monofásico).
 CAMPOS = ["temperatura", "aceleracion_x", "aceleracion_y", "aceleracion_z",
-          "corriente_l1", "corriente_l2", "corriente_l3",
-          "tension_l1", "tension_l2", "tension_l3"]
+          "corriente", "tension"]
 
 
 def requiere_api_key(f):
@@ -46,15 +46,13 @@ def crear_medicion():
     # El backend recalcula los indicadores: no se confía en lo que calcule el ESP32.
     d["vibracion"] = classifier.calcular_vibracion(
         d["aceleracion_x"], d["aceleracion_y"], d["aceleracion_z"])
-    d["desequilibrio_corriente"] = classifier.calcular_desequilibrio(
-        [d["corriente_l1"], d["corriente_l2"], d["corriente_l3"]])
-    d["desequilibrio_tension"] = classifier.calcular_desequilibrio(
-        [d["tension_l1"], d["tension_l2"], d["tension_l3"]])
+    d["desviacion_tension"] = classifier.calcular_desviacion_porcentual(
+        d["tension"], current_app.config["TENSION_NOMINAL"])
 
     d["estado"], detalle = classifier.clasificar(d, current_app.config["UMBRALES"])
     m = Medicion(**d)
     db.session.add(m)
-    db.session.flush()                      # necesitamos m.id para evaluar el histórico
+    db.session.flush()
     desviaciones = health.evaluar(m)
     db.session.commit()
     return jsonify(medicion=m.to_dict(), detalle_umbrales=detalle,
@@ -68,7 +66,7 @@ def listar_mediciones():
     if desde := request.args.get("desde"):
         q = q.filter(Medicion.fecha_hora >= desde)
     filas = q.limit(limit).all()
-    return jsonify([m.to_dict() for m in reversed(filas)])   # cronológico
+    return jsonify([m.to_dict() for m in reversed(filas)])
 
 
 @api_bp.get("/estado")
@@ -123,3 +121,20 @@ def alertas():
                      Medicion.semaforo_inteligente.in_(["ADVERTENCIA", "CRITICO"]))
              .order_by(Medicion.id.desc()).limit(limit).all())
     return jsonify([m.to_dict() for m in filas])
+
+
+@api_bp.get("/configuracion")
+def configuracion():
+    cfg = current_app.config
+    motor = dict(cfg["MOTOR"])
+    motor["tension_nominal_v"] = cfg["TENSION_NOMINAL"]
+    return jsonify(
+        motor=motor,
+        sensores=["temperatura", "vibracion", "corriente", "tension"],
+        tension_nominal=cfg["TENSION_NOMINAL"],
+        umbrales=cfg["UMBRALES"],
+        semaforo={
+            "advertencia": cfg["SEMAFORO_ADVERTENCIA"],
+            "critico": cfg["SEMAFORO_CRITICO"],
+        },
+    )

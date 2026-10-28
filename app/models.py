@@ -11,14 +11,9 @@ class Medicion(db.Model):
     aceleracion_y = db.Column(db.Float, nullable=False)
     aceleracion_z = db.Column(db.Float, nullable=False)
     vibracion = db.Column(db.Float, nullable=False)
-    corriente_l1 = db.Column(db.Float, nullable=False)
-    corriente_l2 = db.Column(db.Float, nullable=False)
-    corriente_l3 = db.Column(db.Float, nullable=False)
-    tension_l1 = db.Column(db.Float, nullable=False)
-    tension_l2 = db.Column(db.Float, nullable=False)
-    tension_l3 = db.Column(db.Float, nullable=False)
-    desequilibrio_corriente = db.Column(db.Float, nullable=False)
-    desequilibrio_tension = db.Column(db.Float, nullable=False)
+    corriente = db.Column(db.Float, nullable=False)
+    tension = db.Column(db.Float, nullable=False)
+    desviacion_tension = db.Column(db.Float, nullable=False)
     estado = db.Column(db.String(12), nullable=False)            # umbrales fijos
     indice_salud = db.Column(db.Float, nullable=True)            # NULL mientras no hay línea base
     semaforo_inteligente = db.Column(db.String(20), nullable=True)
